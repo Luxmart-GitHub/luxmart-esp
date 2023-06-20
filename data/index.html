@@ -14,12 +14,11 @@
     <div class="content">
       <div class="card-grid">
         <div class="card">
-          <p class="card-title"><i class="fas fa-lightbulb"></i> GPIO 2</p>
-          <p>
-            <a href="on"><button class="button-on">ON</button></a>
-            <a href="off"><button class="button-off">OFF</button></a>
-          </p>
-          <p class="state">State: %STATE%</p>
+          <form action="/" method="POST">
+              <input type="range" min="1" max="100" value="50" class="slider" name="value" oninput="this.nextElementSibling.value = this.value">
+              <output>50</output>
+              <button type="submit">Submit</button>
+          </form>
         </div>
       </div>
     </div>
