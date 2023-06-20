@@ -10,7 +10,12 @@
 #include <ESP8266WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <ESPAsyncTCP.h>
-#include <FS.h>
+#include <stdlib.h>
+#include <EEPROM.h>
+
+#define EEPROM_SIZE 130
+
+#include "html.h"
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -51,48 +56,6 @@ const int ledPin = 2;
 // Stores LED state
 
 String ledState;
-
-// Initialize SPIFFS
-void initSPIFFS() {
-  if (!SPIFFS.begin()) {
-    Serial.println("An error has occurred while mounting SPIFFS");
-  }
-  Serial.println("SPIFFS mounted successfully");
-}
-
-// Read File from SPIFFS
-String readFile(fs::FS &fs, const char * path){
-  Serial.printf("Reading file: %s\r\n", path);
-
-  File file = fs.open(path, "r");
-  if(!file || file.isDirectory()){
-    Serial.println("- failed to open file for reading");
-    return String();
-  }
-  
-  String fileContent;
-  while(file.available()){
-    fileContent = file.readStringUntil('\n');
-    break;     
-  }
-  return fileContent;
-}
-
-// Write file to SPIFFS
-void writeFile(fs::FS &fs, const char * path, const char * message){
-  Serial.printf("Writing file: %s\r\n", path);
-
-  File file = fs.open(path, "w");
-  if(!file){
-    Serial.println("- failed to open file for writing");
-    return;
-  }
-  if(file.print(message)){
-    Serial.println("- file written");
-  } else {
-    Serial.println("- frite failed");
-  }
-}
 
 // Initialize WiFi
 bool initWiFi() {
@@ -143,44 +106,78 @@ String processor(const String& var) {
   return String();
 }
 
+void handleSetValuePost(AsyncWebServerRequest* request) {
+  int numberOfParams = request->params();
+  for(int i = 0; i < numberOfParams; i++) {
+    AsyncWebParameter* param = request->getParam(i);
+    if(param->isPost()) {
+      int value = atoi(param->value().c_str());
+      Serial.print("Sending value: ");
+      Serial.println(value);
+      // Send signal to UART
+    }
+  }
+  String htmlString = (char*)index_html;
+  request->send(200, "text/html", htmlString);
+}
+
+struct WifiData {
+  char ssid[33];
+  char password[64];
+  char ip[16];
+  char gateway[16];
+};
+
 void setup() {
   // Serial port for debugging purposes
   Serial.begin(115200);
 
-  initSPIFFS();
+  EEPROM.begin(EEPROM_SIZE);
 
   // Set GPIO 2 as an OUTPUT
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, LOW);
+
+  WifiData readWifiData;
+
+  EEPROM.get(0, readWifiData);
   
   // Load values saved in SPIFFS
-  ssid = readFile(SPIFFS, ssidPath);
-  pass = readFile(SPIFFS, passPath);
-  ip = readFile(SPIFFS, ipPath);
-  gateway = readFile (SPIFFS, gatewayPath);
+  ssid = readWifiData.ssid;
+  pass = readWifiData.password;
+  ip = readWifiData.ip;
+  gateway = readWifiData.gateway;
   Serial.println(ssid);
   Serial.println(pass);
   Serial.println(ip);
   Serial.println(gateway);
 
-  if(initWiFi()) {
+  if(initWiFi()) {   
     // Route for root / web page
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+      //request->send(SPIFFS, "/index.html", "text/html", false, processor);
+      String htmlString = (char*)index_html;
+      request->send(200, "text/html", htmlString);
     });
-    server.serveStatic("/", SPIFFS, "/");
     
     // Route to set GPIO state to HIGH
     server.on("/on", HTTP_GET, [](AsyncWebServerRequest *request) {
       digitalWrite(ledPin, HIGH);
-      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+      //request->send(SPIFFS, "/index.html", "text/html", false, processor);
+      String htmlString = (char*)index_html;
+      request->send(200, "text/html", htmlString);
     });
 
     // Route to set GPIO state to LOW
     server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request) {
       digitalWrite(ledPin, LOW);
-      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+      //request->send(SPIFFS, "/index.html", "text/html", false, processor);
+      String htmlString = (char*)index_html;
+      request->send(200, "text/html", htmlString);
     });
+
+    server.on("/", HTTP_POST, handleSetValuePost);
+
     server.begin();
   }
   else {
@@ -191,17 +188,18 @@ void setup() {
 
     IPAddress IP = WiFi.softAPIP();
     Serial.print("AP IP address: ");
-    Serial.println(IP); 
+    Serial.println(IP);
 
     // Web Server Root URL
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-      request->send(SPIFFS, "/wifimanager.html", "text/html");
+      //request->send(SPIFFS, "/wifimanager.html", "text/html");
+      String htmlString = (char*)wifimanager_html;
+      request->send(200, "text/html", htmlString);
     });
-    
-    server.serveStatic("/", SPIFFS, "/");
     
     server.on("/", HTTP_POST, [](AsyncWebServerRequest *request) {
       int params = request->params();
+      WifiData wifiData;
       for(int i=0;i<params;i++){
         AsyncWebParameter* p = request->getParam(i);
         if(p->isPost()){
@@ -210,36 +208,35 @@ void setup() {
             ssid = p->value().c_str();
             Serial.print("SSID set to: ");
             Serial.println(ssid);
-            // Write file to save value
-            writeFile(SPIFFS, ssidPath, ssid.c_str());
+            strcpy(wifiData.ssid, p->value().c_str());
           }
           // HTTP POST pass value
           if (p->name() == PARAM_INPUT_2) {
             pass = p->value().c_str();
             Serial.print("Password set to: ");
             Serial.println(pass);
-            // Write file to save value
-            writeFile(SPIFFS, passPath, pass.c_str());
+            strcpy(wifiData.password, p->value().c_str());
           }
           // HTTP POST ip value
           if (p->name() == PARAM_INPUT_3) {
             ip = p->value().c_str();
             Serial.print("IP Address set to: ");
             Serial.println(ip);
-            // Write file to save value
-            writeFile(SPIFFS, ipPath, ip.c_str());
+            strcpy(wifiData.ip, p->value().c_str());
           }
           // HTTP POST gateway value
           if (p->name() == PARAM_INPUT_4) {
             gateway = p->value().c_str();
             Serial.print("Gateway set to: ");
             Serial.println(gateway);
-            // Write file to save value
-            writeFile(SPIFFS, gatewayPath, gateway.c_str());
+            strcpy(wifiData.gateway,p->value().c_str());
           }
           //Serial.printf("POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
         }
       }
+      Serial.print(wifiData.ssid);
+      EEPROM.put(0, wifiData);
+      EEPROM.commit();
       request->send(200, "text/plain", "Done. ESP will restart, connect to your router and go to IP address: " + ip);
       delay(3000);
       ESP.restart();
