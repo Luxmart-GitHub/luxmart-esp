@@ -51,12 +51,6 @@ IPAddress subnet(255, 255, 0, 0);
 unsigned long previousMillis = 0;
 const long interval = 10000;  // interval to wait for Wi-Fi connection (milliseconds)
 
-// Set LED GPIO
-const int ledPin = 2;
-// Stores LED state
-
-String ledState;
-
 // Initialize WiFi
 bool initWiFi() {
   if(ssid=="" || ip==""){
@@ -92,20 +86,6 @@ bool initWiFi() {
   return true;
 }
 
-// Replaces placeholder with LED state value
-String processor(const String& var) {
-  if(var == "STATE") {
-    if(digitalRead(ledPin)) {
-      ledState = "ON";
-    }
-    else {
-      ledState = "OFF";
-    }
-    return ledState;
-  }
-  return String();
-}
-
 void handleSetValuePost(AsyncWebServerRequest* request) {
   int numberOfParams = request->params();
   for(int i = 0; i < numberOfParams; i++) {
@@ -115,8 +95,15 @@ void handleSetValuePost(AsyncWebServerRequest* request) {
       Serial.print("Sending value: ");
       Serial.println(value);
       // Send signal to UART
+
+      Serial1.write('0');
+      for(int i = 0; i < value; i++)
+        Serial1.write('w');
     }
   }
+
+  
+
   String htmlString = (char*)index_html;
   request->send(200, "text/html", htmlString);
 }
@@ -128,15 +115,12 @@ struct WifiData {
   char gateway[16];
 };
 
+
 void setup() {
   // Serial port for debugging purposes
   Serial.begin(115200);
 
   EEPROM.begin(EEPROM_SIZE);
-
-  // Set GPIO 2 as an OUTPUT
-  pinMode(ledPin, OUTPUT);
-  digitalWrite(ledPin, LOW);
 
   WifiData readWifiData;
 
@@ -152,31 +136,29 @@ void setup() {
   Serial.println(ip);
   Serial.println(gateway);
 
-  if(initWiFi()) {   
+  if(initWiFi()) {  
+
+    Serial1.begin(9600);
+
     // Route for root / web page
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-      //request->send(SPIFFS, "/index.html", "text/html", false, processor);
-      String htmlString = (char*)index_html;
-      request->send(200, "text/html", htmlString);
-    });
-    
-    // Route to set GPIO state to HIGH
-    server.on("/on", HTTP_GET, [](AsyncWebServerRequest *request) {
-      digitalWrite(ledPin, HIGH);
-      //request->send(SPIFFS, "/index.html", "text/html", false, processor);
-      String htmlString = (char*)index_html;
-      request->send(200, "text/html", htmlString);
-    });
-
-    // Route to set GPIO state to LOW
-    server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request) {
-      digitalWrite(ledPin, LOW);
-      //request->send(SPIFFS, "/index.html", "text/html", false, processor);
       String htmlString = (char*)index_html;
       request->send(200, "text/html", htmlString);
     });
 
     server.on("/", HTTP_POST, handleSetValuePost);
+
+    server.on("/reset", HTTP_POST, [](AsyncWebServerRequest *request) {
+      WifiData wifiData;
+      wifiData.ssid[0] = '\0';
+      wifiData.password[0] = '\0';
+      wifiData.ip[0] = '\0';
+      wifiData.gateway[0] = '\0';
+      EEPROM.put(0, wifiData);
+      EEPROM.commit();
+      request->send(200, "text/plain", "Wifi Settings Reset. ESP will restart.");
+      ESP.restart();
+    });
 
     server.begin();
   }
@@ -192,7 +174,6 @@ void setup() {
 
     // Web Server Root URL
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-      //request->send(SPIFFS, "/wifimanager.html", "text/html");
       String htmlString = (char*)wifimanager_html;
       request->send(200, "text/html", htmlString);
     });
@@ -246,5 +227,4 @@ void setup() {
 }
 
 void loop() {
-
-}
+} 

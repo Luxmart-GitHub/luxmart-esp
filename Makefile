@@ -608,6 +608,8 @@ DEFAULT_GOAL ?= all
 
 # Generate h files for html
 html:
-	cd data; xxd -i index.html index.h; xxd -i wifimanager.html wifimanager.h; \
+	cd data; \
+	xxd -i index.html | tr '\n' '?' | sed 's/?};/, 0x00?};/' | tr '?' '\n' > index.h; \
+	xxd -i wifimanager.html | tr '\n' '?' | sed 's/?};/, 0x00?};/' | tr '?' '\n' > wifimanager.h; \
 	cat index.h wifimanager.h > html.h; mv html.h ../; rm index.h wifimanager.h;
 
