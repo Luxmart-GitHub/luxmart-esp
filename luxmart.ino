@@ -33,12 +33,6 @@ String pass;
 String ip;
 String gateway;
 
-// File paths to save input values permanently
-const char* ssidPath = "/ssid.txt";
-const char* passPath = "/pass.txt";
-const char* ipPath = "/ip.txt";
-const char* gatewayPath = "/gateway.txt";
-
 IPAddress localIP;
 //IPAddress localIP(192, 168, 1, 200); // hardcoded
 
@@ -86,6 +80,44 @@ bool initWiFi() {
   return true;
 }
 
+int readValueFromUART(int timeout) {
+  Serial1.write('r');
+  Serial.println("Requesting current value...");
+  
+  int ch;
+  int startTime = millis();
+  int time = 0;
+
+  ESP.wdtDisable();
+  do {
+    ch = Serial1.read();
+
+    time = millis();
+  }
+  while(ch != 'w' && time < startTime + timeout);
+  ch = Serial1.read();
+
+  Serial.println(ch);
+
+  ESP.wdtEnable(1000);
+    
+  if(time >= startTime + timeout)
+    ch = -1;
+
+  Serial.println("Read value!");
+
+  return ch;
+}
+
+String processor(const String& var) {
+  if(var == "VALUE") {
+    int value = readValueFromUART(2000);
+    return value >= 0 ? String(value) : "COULD NOT READ VALUE";
+  }
+  return String();
+}
+
+
 void handleSetValuePost(AsyncWebServerRequest* request) {
   int numberOfParams = request->params();
   for(int i = 0; i < numberOfParams; i++) {
@@ -96,16 +128,18 @@ void handleSetValuePost(AsyncWebServerRequest* request) {
       Serial.println(value);
       // Send signal to UART
 
-      Serial1.write('0');
-      for(int i = 0; i < value; i++)
-        Serial1.write('w');
+
+      // Old ATTiny firmware
+      // Serial1.write('0');
+      // for(int i = 0; i < value; i++)
+      //  Serial1.write('w');
+
+      Serial1.write('w');
+      Serial1.write(value);
     }
   }
 
-  
-
-  String htmlString = (char*)index_html;
-  request->send(200, "text/html", htmlString);
+  request->send_P(200, "text/html", index_html, index_html_len, processor);
 }
 
 struct WifiData {
@@ -119,6 +153,8 @@ struct WifiData {
 void setup() {
   // Serial port for debugging purposes
   Serial.begin(115200);
+  
+  Serial1.begin(9600);
 
   EEPROM.begin(EEPROM_SIZE);
 
@@ -142,8 +178,7 @@ void setup() {
 
     // Route for root / web page
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-      String htmlString = (char*)index_html;
-      request->send(200, "text/html", htmlString);
+      request->send_P(200, "text/html", index_html, index_html_len, processor);
     });
 
     server.on("/", HTTP_POST, handleSetValuePost);
@@ -174,8 +209,7 @@ void setup() {
 
     // Web Server Root URL
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-      String htmlString = (char*)wifimanager_html;
-      request->send(200, "text/html", htmlString);
+      request->send_P(200, "text/html", wifimanager_html, wifimanager_html_len, processor);
     });
     
     server.on("/", HTTP_POST, [](AsyncWebServerRequest *request) {
