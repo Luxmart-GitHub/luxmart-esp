@@ -181,6 +181,11 @@ void setup() {
       request->send_P(200, "text/html", index_html, index_html_len, processor);
     });
 
+    // Route for root / web page
+    server.on("/value", HTTP_GET, [](AsyncWebServerRequest *request) {
+      request->send(200, "text/plain", String(readValueFromUART(2000)));
+    });
+
     server.on("/", HTTP_POST, handleSetValuePost);
 
     server.on("/reset", HTTP_POST, [](AsyncWebServerRequest *request) {
