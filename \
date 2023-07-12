@@ -40,8 +40,7 @@ struct WifiData {
 #include "WifiSetupWebUserControl.h"
 
 void pwm_controller_setup() {
-    EEPROM.begin(EEPROM_SIZE);
-
+    
     // Load saved WiFi Data
     WifiData savedWifiData;
     EEPROM.get(0, savedWifiData);
@@ -51,8 +50,6 @@ void pwm_controller_setup() {
     ip = savedWifiData.ip;
     gateway = savedWifiData.gateway;
     
-    DBGLOG("Connecting to WiFi...");
-
     // Start Web Server
     WebUserControl* webServer;
     if(setupWiFi()) {
@@ -68,6 +65,14 @@ void pwm_controller_setup() {
     }
 
     webServer->start();
+    DBGLOG("TEST");
+
+    pwmSerial.println("TEST123");
 }
 
-void pwm_controller_loop() {}
+void pwm_controller_loop() {
+    digitalWrite(LED_BUILTIN, LED_LOW);
+    delay(1000);
+    digitalWrite(LED_BUILTIN, LED_HIGH);
+    DBGLOG("TEST");
+}

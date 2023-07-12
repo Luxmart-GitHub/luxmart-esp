@@ -69,6 +69,8 @@ void WifiSetupWebUserControl::postHomeCallback(AsyncWebServerRequest* request) {
     }
     EEPROM.put(0, wifiData);
     EEPROM.commit();
+    DBGLOG("New Wifi Options Saved.");
+    DBGLOG(ssid.c_str());
     request->send(200, "text/plain", "Done. ESP will restart, connect to your router and go to IP address: " + ip);
     delay(3000);
     ESP.restart();
