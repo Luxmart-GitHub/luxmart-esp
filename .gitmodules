@@ -1,0 +1,6 @@
+[submodule "pwm-controller-esp-common"]
+	path = common
+	url = https://github.com/Luxmart-GitHub/pwm-controller-esp-common.git
+[submodule "pwm-controller-api"]
+	path = api
+	url = https://github.com/Luxmart-GitHub/pwm-controller-api.git
