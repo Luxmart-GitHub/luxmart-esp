@@ -68,6 +68,8 @@ void PwmControllerWebUserControl::getValueCallback(AsyncWebServerRequest* reques
 };
 
 void PwmControllerWebUserControl::postHomeCallback(AsyncWebServerRequest* request) {
+    DBGLOG("Received Post Request");
+
     int numberOfParams = request->params();
     for(int i = 0; i < numberOfParams; i++) {
         AsyncWebParameter* param = request->getParam(i);
@@ -76,9 +78,12 @@ void PwmControllerWebUserControl::postHomeCallback(AsyncWebServerRequest* reques
 
             pwmSerial.write('w');
             pwmSerial.write(value);
+
+            DBGLOG("Set value to");
+            DBGLOG(value);
         }
     }
-
+    
     request->send_P(200, "text/html", index_html, index_html_len, templateProcessor);
 };
 
