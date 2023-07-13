@@ -14,6 +14,7 @@ public:
     for(int i = 0; i < length; i++)
       server.on(endpoints[i], methods[i], callbacks[i]);
   }
+
   void iterate() {}
   void start() { server.begin(); }
 

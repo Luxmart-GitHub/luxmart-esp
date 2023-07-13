@@ -35,11 +35,12 @@ struct WifiData {
 #include "common/pwm_controller_esp.h"
 #include "common/pwm_controller_user.h"
 #include "html.h"
+#include "WebUserControl.h"
+
+WebUserControl* webServer;
 
 #include "PwmControllerWebUserControl.h"
 #include "WifiSetupWebUserControl.h"
-
-WebUserControl* webServer;
 
 bool setupSuccessful = false;
 

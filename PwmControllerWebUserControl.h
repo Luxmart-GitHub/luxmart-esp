@@ -47,6 +47,9 @@ void PwmControllerWebUserControl::iterate() {
     if(millis() >= lastTimeValueRead + valueRequestDelay) {
         ReturnedValue err = executeCommand(CommandGetValue, nullptr, &value);
         if(err) value = -1;
+        
+        DBGLOG("Received value:");
+        DBGLOG(value);
 
         lastTimeValueRead = millis();
     }
@@ -74,10 +77,9 @@ void PwmControllerWebUserControl::postHomeCallback(AsyncWebServerRequest* reques
     for(int i = 0; i < numberOfParams; i++) {
         AsyncWebParameter* param = request->getParam(i);
         if(param->isPost()) {
-            int value = atoi(param->value().c_str());
+            char value = atoi(param->value().c_str());
 
-            pwmSerial.write('w');
-            pwmSerial.write(value);
+            webServer->executeCommand(CommandSetValue, &value, nullptr);
 
             DBGLOG("Set value to");
             DBGLOG(value);
