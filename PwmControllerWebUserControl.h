@@ -77,7 +77,7 @@ void PwmControllerWebUserControl::postHomeCallback(AsyncWebServerRequest* reques
     for(int i = 0; i < numberOfParams; i++) {
         AsyncWebParameter* param = request->getParam(i);
         if(param->isPost()) {
-            char value = atoi(param->value().c_str());
+            int value = atoi(param->value().c_str());
 
             webServer->executeCommand(CommandSetValue, &value, nullptr);
 
