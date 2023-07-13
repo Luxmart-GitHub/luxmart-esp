@@ -32,11 +32,13 @@ private:
     static String templateProcessor(const String&);
 
     static char value;
+    static bool valueValid;
     static unsigned long lastTimeValueRead; 
     static const int valueRequestDelay = 100;
 };
 
 char PwmControllerWebUserControl::value = 0;
+bool PwmControllerWebUserControl::valueValid = 0;
 unsigned long PwmControllerWebUserControl::lastTimeValueRead = 0;
 
 const char* PwmControllerWebUserControl::endpoints[] = {"/", "/value", "/", "/reset"};
@@ -46,7 +48,12 @@ const ArRequestHandlerFunction PwmControllerWebUserControl::callbacks[] = {getHo
 void PwmControllerWebUserControl::iterate() {
     if(millis() >= lastTimeValueRead + valueRequestDelay) {
         ReturnedValue err = executeCommand(CommandGetValue, nullptr, &value);
-        if(err) value = -1;
+        if(err) {
+            value = -1;
+            valueValid = false;
+        } else {
+            valueValid = true;
+        }
         
         DBGLOG("Received value:");
         DBGLOG(value);
@@ -57,7 +64,7 @@ void PwmControllerWebUserControl::iterate() {
 
 String PwmControllerWebUserControl::templateProcessor(const String& var) {
   if(var == "VALUE") {
-    return value >= 0 ? String(value) : "COULD NOT READ VALUE";
+    return valueValid ? String(value) : "?";
   }
   return String();
 }
@@ -77,11 +84,9 @@ void PwmControllerWebUserControl::postHomeCallback(AsyncWebServerRequest* reques
     for(int i = 0; i < numberOfParams; i++) {
         AsyncWebParameter* param = request->getParam(i);
         if(param->isPost()) {
-            int value = atoi(param->value().c_str());
+            value = atoi(param->value().c_str());
             
-            char t;
-            webServer->executeCommand(CommandSetValue, &t, nullptr);
-            value = t;
+            webServer->executeCommand(CommandSetValue, &value, nullptr);
 
             DBGLOG("Set value to");
             DBGLOG(value);
