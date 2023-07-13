@@ -78,8 +78,10 @@ void PwmControllerWebUserControl::postHomeCallback(AsyncWebServerRequest* reques
         AsyncWebParameter* param = request->getParam(i);
         if(param->isPost()) {
             int value = atoi(param->value().c_str());
-
-            webServer->executeCommand(CommandSetValue, &value, nullptr);
+            
+            char t;
+            webServer->executeCommand(CommandSetValue, &t, nullptr);
+            value = t;
 
             DBGLOG("Set value to");
             DBGLOG(value);
