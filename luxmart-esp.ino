@@ -39,6 +39,30 @@ struct WifiData {
 #include "PwmControllerWebUserControl.h"
 #include "WifiSetupWebUserControl.h"
 
+WebUserControl* webServer;
+
+bool setupSuccessful = false;
+
+void start_web_server() {
+    
+    if(WiFi.status() == WL_CONNECTED) {
+        DBGLOG("Connected successfully. Starting web server");
+        webServer = new PwmControllerWebUserControl();
+
+        setupSuccessful = true;
+    } else {
+        DBGLOG("Setting AP");
+
+        WiFi.softAP("ESP-WIFI-MANAGER", NULL);
+
+        DBGLOG("Starting Web Server");
+        webServer = new WifiSetupWebUserControl();
+    }
+
+    webServer->start();
+
+}
+
 void pwm_controller_setup() {
     EEPROM.begin(EEPROM_SIZE);
 
@@ -52,22 +76,22 @@ void pwm_controller_setup() {
     gateway = savedWifiData.gateway;
     
     DBGLOG("Connecting to WiFi...");
-
-    // Start Web Server
-    WebUserControl* webServer;
-    if(setupWiFi()) {
-        DBGLOG("Connected successfully. Starting web server");
-        webServer = new PwmControllerWebUserControl();
-    } else {
-        DBGLOG("Setting AP");
-
-        WiFi.softAP("ESP-WIFI-MANAGER", NULL);
-
-        DBGLOG("Starting Web Server");
-        webServer = new WifiSetupWebUserControl();
-    }
-
-    webServer->start();
+    
+    setupWiFi();
+    start_web_server();
 }
 
-void pwm_controller_loop() {}
+#define RESET_COUNT 3
+int resetCounter = 0;
+
+void pwm_controller_loop() {
+    webServer->iterate();
+    
+    if(setupSuccessful) {
+        if(WiFi.status() != WL_CONNECTED && resetCounter++ < RESET_COUNT) {
+            setupWiFi();
+        }
+        if(WiFi.status() == WL_CONNECTED) resetCounter = 0;
+        if(resetCounter >= RESET_COUNT) ESP.reset();
+    }
+}
