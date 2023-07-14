@@ -4,3 +4,6 @@
 [submodule "pwm-controller-api"]
 	path = api
 	url = https://github.com/Luxmart-GitHub/pwm-controller-api.git
+[submodule "makeEspArduino"]
+	path = makeEspArduino
+	url = https://github.com/plerup/makeEspArduino.git
